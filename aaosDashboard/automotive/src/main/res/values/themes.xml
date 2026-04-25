@@ -1,0 +1,4 @@
+<resources>
+
+    <style name="Theme.AaosDashboard" parent="android:Theme.Material.Light.DarkActionBar" />
+</resources>
