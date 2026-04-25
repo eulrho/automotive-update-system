@@ -20,10 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun StatusBar(
-    vehicleName: String,
-    date: String,
-    time: String
+fun HeadBar(
+    vehicleName: String
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -32,24 +30,7 @@ fun StatusBar(
             containerColor = Color(0xFF101010)
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            HeadText(vehicleName)
-
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                HeadText(date)
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                HeadText(time)
-            }
-        }
+        HeadText(vehicleName)
     }
 }
 
