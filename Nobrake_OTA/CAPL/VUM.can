@@ -1,0 +1,385 @@
+﻿/*@!Encoding:65001*/
+includes
+{
+  
+}
+
+variables
+{
+  // --- 수신 데이터 버퍼 ---
+  byte gVumBuffer[5242880]; // 최대 5MB 버퍼 (메모리에만 상주)
+  long gExpectedSize = 0;   // Sig_OTA_TotalSize
+  word gOtaVersion = 0; //Sig_OTA_Version
+  byte gTargetECU_ID = 0x34; // Sig_TargetECU_ID
+  long gCurrentReceived = 0;  
+  
+  // --- 상태 관리 ---
+  int gIsUpdating = 0;
+  int gCurrentIgnition = 0; //시동상태 (0:off, 1:acc, 2:on)
+  int gCurrentSpeed = 0;// 차량속도
+  int gRejectReason = 0;// 불가사유
+  
+  // --- CAN FD OTA 전송 제어 관련 ---
+  msTimer sendTimer;      // 시뮬레이션 중단 방지용 타이머
+  msTimer sendTimer_roll;  //롤백용 
+  long    gCurrentBlock = 0;
+  long    gTotalBlocks = 0;
+  
+  // -- 프로그레스 진행 관련
+  int progressrate;
+  int panel_state;
+  
+  // 가장 마지막 다운로드 버튼 정보
+  int gdownload_btn;
+
+  // [새로 추가한 부분] 서버 보고용 메시지 변수 추가
+  message Light_OTA_Complete msg_UpdateLog; 
+}
+
+
+/*
+ Telematics->VUM 수신 부
+*/
+
+// [1] OTA 메타데이터 수신 (ID: 0x200)
+on message TMU_OTA_Metadata
+{
+  gTargetECU_ID = this.Sig_TargetECU_ID;
+  gExpectedSize = this.Sig_OTA_TotalSize;
+  gOtaVersion = this.Sig_OTA_Version;
+  gCurrentReceived = 0; // 버퍼 인덱스 초기화
+  gIsUpdating = 1;
+  
+  //체크용 로그
+  write("[VUM] OTA 수신 준비 완료: 예상 크기 %ld bytes", gExpectedSize);
+  write("[VUM] 수신된 펌웨어 버전: %u", this.Sig_OTA_Version);
+}
+
+
+// [2] OTA 데이터 블록 수신 (ID: 0x201)
+on message TMU_OTA_DataBlock
+{
+  int i;
+  int blockLen;
+  long baseIdx;
+  
+  
+  if (gIsUpdating == 1 && this.can == 2 && this.dir == Rx)
+  {
+    blockLen = this.Sig_BlockLen; // 유효 데이터 길이 (최대 6바이트)
+    baseIdx = gCurrentReceived;
+
+    if (baseIdx + blockLen <= elcount(gVumBuffer))
+    {
+      for (i = 0; i < blockLen; i++)
+      {
+        gVumBuffer[baseIdx + i] = this.Sig_BlockData0_5.byte(i);
+      }
+      gCurrentReceived += blockLen;
+    }
+
+    // --- 수신 확인용 로그 추가 ---
+    // 500개 블록마다 한 번씩 현재 수신 상태를 Write 창에 출력합니다.
+    if (this.Sig_BlockSeq % 10 == 0) 
+      {
+        // 데이터의 첫 바이트(byte(0))도 로그에 찍어서 0이 아닌지 확인
+        write("[VUM] 수신 중... 블록번호: %d | 총량: %ld | 샘플데이터: 0x%02X", (int)this.Sig_BlockSeq, gCurrentReceived, (int)this.Sig_BlockData0_5.byte(0));
+        
+        // 프로그레스바
+        progressrate = (1 + gCurrentReceived * 100 / gExpectedSize);
+        write("[프로그레스진행률] %d",progressrate);
+        
+        panel_state = 4 + (progressrate % 4);
+        SysSetVariableInt(sysvar::UI_Status::window_discription, panel_state);
+        
+      }
+  }
+}
+
+// [3] OTA 전송 종료 수신 (ID: 0x202)
+on message TMU_OTA_TransferEnd
+{
+  if (gIsUpdating == 1 && this.can == 2 && this.dir == Rx)
+  {
+    // 업데이트패널 완료!
+    panel_state = 8;
+    SysSetVariableInt(sysvar::UI_Status::window_discription, panel_state);
+    // 파일 저장 로직을 제거하고 완료 로그만 출력
+    write("[VUM] OTA 데이터 수신 완료!");
+    write("[VUM] 메모리 버퍼(gVumBuffer)에 %ld bytes가 저장되었습니다.", gCurrentReceived);
+    write("[확인용] %d", gVumBuffer[0]);
+    gIsUpdating = 0; 
+  }
+  gTotalBlocks = (gCurrentReceived + 5) / 6; 
+  gCurrentBlock = 0;
+  
+  
+  
+  // 메타데이터(0x200) 우선 전송
+  SendMetadata();
+  // 데이터 전송 타이머 시작 (10ms 후 시작)
+  setTimer(sendTimer, 100);
+}
+
+
+/*
+ VUM->LIGHT ECU 송신 부
+*/
+// 1.1 OTA 메타데이터 송신 함수 (ID: 0x151) VUM->LightECU
+void SendMetadata()
+{
+  message VUM_OTA_Metadata msg;
+  msg.can = 2;
+  msg.FDF = 1; // CAN FD 활성화
+  msg.Sig_TargetECU_ID = gTargetECU_ID;
+  msg.Sig_OTA_TotalSize = gExpectedSize;
+  msg.Sig_OTA_Version = gOtaVersion;
+  output(msg);
+  //체크용 로그
+  write("[TM] 차량 내 OTA 전송 시작: 메타데이터(0x151) 전송됨.");
+}
+
+// 1.2 롤백데이터 송신
+void SendMetadata_rollback()
+{
+  message VUM_OTA_Metadata msg;
+  msg.can = 2;
+  msg.FDF = 1; // CAN FD 활성화
+  msg.Sig_TargetECU_ID = gTargetECU_ID;
+  msg.Sig_OTA_TotalSize = gExpectedSize;
+  msg.Sig_OTA_Version = 1;
+  output(msg);
+  //체크용 로그
+  write("[TM] 차량 내 롤백 전송 시작: 메타데이터(0x151) 전송됨.");
+}
+
+// 2.1  OTA 데이터 블록 순차 전송 타이머 (ID: 0x152)
+on timer sendTimer
+{
+  message VUM_OTA_DataBlock msg;
+  long baseIdx;
+  
+  if (gCurrentBlock < gTotalBlocks)
+  {
+    msg.can = 2;
+    msg.FDF = 1;
+    msg.Sig_BlockSeq = gCurrentBlock % 256; // 0~255 순환
+    
+    // 유효 데이터 길이 결정 (마지막 블록 예외 처리)
+    if (gCurrentBlock == gTotalBlocks - 1 && gExpectedSize % 6 != 0) 
+      msg.Sig_BlockLen = gExpectedSize % 6;
+    else 
+      msg.Sig_BlockLen = 6;
+
+    baseIdx = gCurrentBlock * 6;
+
+    // [수정] "no array possible here" 해결을 위한 .byte() 직접 할당
+    msg.Sig_BlockData0_5.byte(0) = gVumBuffer[baseIdx + 0];
+    msg.Sig_BlockData0_5.byte(1) = gVumBuffer[baseIdx + 1];
+    msg.Sig_BlockData0_5.byte(2) = gVumBuffer[baseIdx + 2];
+    msg.Sig_BlockData0_5.byte(3) = gVumBuffer[baseIdx + 3];
+    msg.Sig_BlockData0_5.byte(4) = gVumBuffer[baseIdx + 4];
+    msg.Sig_BlockData0_5.byte(5) = gVumBuffer[baseIdx + 5];
+
+    output(msg);
+    gCurrentBlock++;
+    
+    // 다음 블록 전송 주기 (부하 분산)
+    setTimer(sendTimer, 10); 
+  }
+  else
+  {
+    // [7] 모든 블록 전송 후 종료 프레임 송신
+    SendTransferEnd();
+  }
+}
+
+// 2.2롤백 데이터 보내기
+on timer sendTimer_roll
+{
+  message VUM_OTA_DataBlock msg;
+  long baseIdx;
+  
+  if (gCurrentBlock < gTotalBlocks)
+  {
+    msg.can = 2;
+    msg.FDF = 1;
+    msg.Sig_BlockSeq = gCurrentBlock % 256; // 0~255 순환
+    
+    // 유효 데이터 길이 결정 (마지막 블록 예외 처리)
+    if (gCurrentBlock == gTotalBlocks - 1 && gExpectedSize % 6 != 0) 
+      msg.Sig_BlockLen = gExpectedSize % 6;
+    else 
+      msg.Sig_BlockLen = 6;
+
+    baseIdx = gCurrentBlock * 6;
+
+    // [수정] "no array possible here" 해결을 위한 .byte() 직접 할당
+    msg.Sig_BlockData0_5.byte(0) = gVumBuffer[baseIdx + 0];
+    msg.Sig_BlockData0_5.byte(1) = gVumBuffer[baseIdx + 1];
+    msg.Sig_BlockData0_5.byte(2) = gVumBuffer[baseIdx + 2];
+    msg.Sig_BlockData0_5.byte(3) = gVumBuffer[baseIdx + 3];
+    msg.Sig_BlockData0_5.byte(4) = gVumBuffer[baseIdx + 4];
+    msg.Sig_BlockData0_5.byte(5) = gVumBuffer[baseIdx + 5];
+
+    output(msg);
+    gCurrentBlock++;
+    
+    // 다음 블록 전송 주기 (부하 분산)
+    setTimer(sendTimer, 10); 
+  }
+  else
+  {
+    // [7] 모든 블록 전송 후 종료 프레임 송신
+    SendTransferEnd();
+  }
+}
+
+
+
+// 3 OTA 전송 종료 알림 함수 (ID: 0x153)
+void SendTransferEnd()
+{
+  message VUM_OTA_TransferEnd msg;
+  msg.can = 2;
+  msg.FDF = 1;
+  msg.Sig_TargetECU_ID = gTargetECU_ID;
+  msg.Sig_TransferEnd = 1;
+  msg.Sig_TotalBlocks = gTotalBlocks;
+  output(msg);
+  //체크용 로그
+  write("[TM] 차량 내 OTA 전송 완료: 종료 프레임(0x153) 전송됨.");
+
+  // [새로 추가한 부분] 업데이트 성공 시 정보 저장 및 서버 보고
+  if (gOtaVersion == 2) 
+  {
+    writeProfileInt("STATUS", "Last_Success_Version", (int)gOtaVersion, "UpdateHistory.ini");
+    msg_UpdateLog.Sig_OTA_Result = 1;
+    msg_UpdateLog.Sig_InstalledVersion = gOtaVersion;
+    msg_UpdateLog.Sig_TargetECU_ID = gTargetECU_ID;
+    output(msg_UpdateLog); 
+    write("[VUM] 업데이트 성공 기록 저장 및 서버 보고 완료");
+  }
+
+  gCurrentBlock = 0; //블록 초기화
+  gIsUpdating = 0;
+}
+
+// 업데이트 가능조건 확인
+void UpdateEligibilityAndReq()
+{
+
+    gCurrentIgnition = @UI_Status::start_up_btn;
+  
+    // 업데이터 가능 조건 확인 
+    if (gCurrentIgnition == 1 && gCurrentSpeed == 0) // 업데이트 가능조건 만족
+    {
+      gIsUpdating = 1;
+      gRejectReason = 0;
+      write("[VUM] 업데이트 가능조건 충족 및 OTA데이터 요청");
+    }
+    else if(gCurrentSpeed > 0) // 속도 0이상
+    {
+      gIsUpdating = 0; 
+      gRejectReason = 2;
+      write("[VUM] 경고:업데이트 불가 /차량이 주행중입니다.");
+    }
+    else if(gCurrentIgnition == 2) // 시동 켜져있음
+    {
+      gIsUpdating = 0; 
+      gRejectReason = 1;
+      write("[VUM] 경고:업데이트 불가 /시동이 켜져있습니다..");
+    }
+    else if(gCurrentIgnition == 0) // 시동 꺼져있음
+    {
+      return;
+    }
+    else // 기타상황에의한 불가
+    {
+      gIsUpdating = 0; 
+      gRejectReason = 3;
+      write("[VUM] 경고:업데이트 불가 /기타");
+    }
+    
+
+}
+
+// OTA요청 0x150
+void OTA_Req()
+{
+  message VUM_OTA_EligibilityAndReq msg;
+  write("[PANEL] 업데이트 버튼 클릭 감지!");
+  write("[PANEL] 현재 트리거 값: %d", @Update::UpdateTrigger);
+  
+  msg.Sig_VehicleID = 0;
+  msg.Sig_TargetECU_ID = gTargetECU_ID;
+  msg.Sig_RequestedVersion = 2;
+  msg.Sig_RejectReason = gRejectReason;
+  msg.Sig_OTA_Eligible = gIsUpdating;
+  msg.Sig_OTA_DataRequest = gIsUpdating;
+  output(msg);
+  write("[VUM] 업데이트 조건 메시지 전달 (UPDATE -> NETWORK)");
+}
+
+// [새로 추가한 부분] 주행 중 자동 롤백 조건 추가
+on message Veh_OTA_speedReq 
+{
+  gCurrentSpeed = (int)this.Sig_VehicleSpeed;
+  
+  // 업데이트 중인데 차가 움직이면(속도 > 0) 자동으로 롤백 시퀀스 실행
+  if(gIsUpdating == 1 && gCurrentSpeed > 0)
+  {
+    gIsUpdating = 0;
+    cancelTimer(sendTimer); // 일반 전송 중단
+    
+    // 기존에 있던 롤백 함수와 타이머를 호출
+    SendMetadata_rollback(); 
+    setTimer(sendTimer_roll, 100); 
+    
+    write("[VUM] 위험: 주행 감지로 인해 자동 롤백을 시작합니다.");
+    @UI_Status::window_discription = 15; // 롤백 화면 표시
+  }
+}
+
+
+///// 클러스터 관련 
+
+   /*
+   다운로드 버튼 @UI_Status::download_btn
+   0: 시동꺼짐 비활성화 (투명)
+   1: 상태 진행중 (빈화면)
+   2: NewSW 다운로드 요청
+   3: DownLoad
+   4: 스마트라이트빔 업데이트 버튼 활성화
+   5: Already exists
+  
+   상태진행창 @UI_Status::window_discription
+   0: 빈화면
+   1: OTA 요청중
+   2: 다운로드 불가
+   3: 다운로드 준비
+   4~7: 다운로드 진행중
+   8: OTA 다운로드 완료!
+   9: 업데이트 불가
+   10~13: 업데이트 진행중 
+   14: 업데이트 완료!
+   15~18: 기능 롤백 진행중
+   19:롤백불가
+   20: already Exist
+  
+   롤백 버튼
+   0: 비활성화
+   1: 롤백버튼
+   2 : 롤백후 비활성화
+   */
+
+
+on sysvar Button::down_btn_click
+{
+  UpdateEligibilityAndReq(); // 조건 확인후다운로드 요청
+  
+  if(gIsUpdating == 1)
+  {
+    OTA_Req();
+  }
+}

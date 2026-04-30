@@ -1,0 +1,277 @@
+VERSION ""
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: GateWay HeadLamp ConeringLamp LightSensor SteeringWheel LightECU Telematics VUM Speed StartUp
+
+
+BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
+ SG_ Sig_UpdateDone : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Sig_SwVersion : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 514 TMU_OTA_TransferEnd: 8 GateWay
+ SG_ Sig_TotalBlocks : 16|16@1+ (1,0) [0|65535] ""  VUM,GateWay
+ SG_ Sig_TransferEnd : 8|1@1+ (1,0) [0|1] ""  VUM,GateWay
+ SG_ Sig_TargetECU_ID : 0|8@1+ (1,0) [0|255] ""  VUM,GateWay
+
+BO_ 512 TMU_OTA_Metadata: 8 GateWay
+ SG_ Sig_IntegrityKey32 : 48|16@1+ (1,0) [0|65535] ""  VUM,GateWay
+ SG_ Sig_OTA_TotalSize : 24|24@1+ (1,0) [0|16777215] ""  VUM,GateWay
+ SG_ Sig_OTA_Version : 8|16@1+ (1,0) [0|65535] ""  VUM,GateWay
+ SG_ Sig_TargetECU_ID : 0|8@1+ (1,0) [0|255] ""  VUM,GateWay
+
+BO_ 513 TMU_OTA_DataBlock: 8 GateWay
+ SG_ Sig_BlockData0_5 : 16|48@1+ (1,0) [0|281474976710655] ""  VUM,GateWay
+ SG_ Sig_BlockLen : 8|8@1+ (1,0) [0|6] ""  VUM,GateWay
+ SG_ Sig_BlockSeq : 0|8@1+ (1,0) [0|255] ""  VUM,GateWay
+
+BO_ 592 Light_LampControlOut: 8 LightECU
+ SG_ Sig_HeadLampMaxCap : 32|8@1+ (1,0) [0|100] "%"  HeadLamp
+ SG_ Sig_HighBeamOn : 25|1@1+ (1,0) [0|1] ""  HeadLamp
+ SG_ Sig_LowBeamOn : 24|1@1+ (1,0) [0|1] ""  HeadLamp
+ SG_ Sig_CornerLampDuty : 16|8@1+ (1,0) [0|100] "%"  ConeringLamp
+ SG_ Sig_BeamAngleCmd : 0|16@1- (0.1,0) [-300|300] ""  ConeringLamp
+
+BO_ 260 Veh_AmbientLux: 2 LightSensor
+ SG_ Sig_AmbientLux : 0|16@1+ (1,0) [0|65535] "lux/raw"  LightECU,GateWay
+
+BO_ 259 Veh_VehicleSpeed: 1 Speed
+ SG_ Sig_VehicleSpeed : 0|8@1+ (1,0) [0|250] "km/h"  LightECU,GateWay
+
+BO_ 258 Veh_SteeringAngle: 2 SteeringWheel
+ SG_ Sig_SteeringAngle : 0|16@1- (0.1,0) [-780|780] "°"  LightECU,GateWay
+
+BO_ 342 VUM_OTA_UpdateLog: 8 VUM
+ SG_ Sig_OTA_Result : 40|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ Sig_InstalledVersion : 42|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ Sig_ErrorCode : 24|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ Sig_UpdateDate : 8|16@1+ (1,0) [0|65535] ""  Telematics,GateWay
+ SG_ Sig_TargetECU_ID : 0|8@1+ (1,0) [0|255] ""  Telematics,GateWay
+
+BO_ 341 VUM_OTA_IntegrityResult: 8 VUM
+ SG_ Sig_RecvKey16 : 32|16@1+ (1,0) [0|65535] ""  Telematics,GateWay
+ SG_ Sig_CalcKey16 : 16|16@1+ (1,0) [0|65535] ""  Telematics,GateWay
+ SG_ Sig_IntegrityOK : 8|1@1+ (1,0) [0|1] ""  Telematics,GateWay
+ SG_ Sig_TargetECU_ID : 0|8@1+ (1,0) [0|255] ""  Telematics,GateWay
+
+BO_ 340 VUM_OTA_CancelRollbackReq: 8 VUM
+ SG_ Sig_KeepPrevVersion : 16|16@1+ (1,0) [0|65535] ""  LightECU,GateWay
+ SG_ Sig_RollbackReq : 9|1@1+ (1,0) [0|1] ""  LightECU,GateWay
+ SG_ Sig_OTA_CancelReq : 8|1@1+ (1,0) [0|1] ""  LightECU,GateWay
+ SG_ Sig_TargetECU_ID : 0|8@1+ (1,0) [0|255] ""  LightECU,GateWay
+
+BO_ 594 Light_OTA_Complete: 8 LightECU
+ SG_ Sig_UpdateDate : 8|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ Sig_ErrorCode : 42|16@1+ (1,0) [0|65535] ""  Telematics,GateWay,VUM
+ SG_ Sig_InstalledVersion : 24|16@1+ (1,0) [0|65535] ""  Telematics,GateWay,VUM
+ SG_ Sig_OTA_Result : 40|2@1+ (1,0) [0|3] ""  Telematics,GateWay,VUM
+ SG_ Sig_TargetECU_ID : 0|8@1+ (1,0) [0|255] ""  Telematics,GateWay,VUM
+
+BO_ 339 VUM_OTA_TransferEnd: 8 Telematics
+ SG_ Sig_TotalBlocks : 16|16@1+ (1,0) [0|65535] ""  LightECU,GateWay
+ SG_ Sig_TransferEnd : 8|1@1+ (1,0) [0|1] ""  LightECU,GateWay
+ SG_ Sig_TargetECU_ID : 0|8@1+ (1,0) [0|255] ""  LightECU,GateWay
+
+BO_ 593 Light_OTA_Progress: 8 LightECU
+ SG_ Sig_ProgressState : 40|4@1+ (1,0) [0|15] ""  GateWay,VUM
+ SG_ Sig_ReceivedBytes : 16|24@1+ (1,0) [0|16777215] "bytes"  GateWay,VUM
+ SG_ Sig_UpdateProgress : 8|8@1+ (1,0) [0|100] "%"  GateWay,VUM
+ SG_ Sig_TargetECU_ID : 0|8@1+ (1,0) [0|255] ""  GateWay,VUM
+
+BO_ 338 VUM_OTA_DataBlock: 8 VUM
+ SG_ Sig_BlockData0_5 : 16|48@1+ (1,0) [0|281474976710655] ""  LightECU,GateWay
+ SG_ Sig_BlockLen : 8|8@1+ (1,0) [0|6] ""  LightECU,GateWay
+ SG_ Sig_BlockSeq : 0|8@1+ (1,0) [0|255] ""  LightECU,GateWay
+
+BO_ 337 VUM_OTA_Metadata: 8 Telematics
+ SG_ Sig_IntegrityKey32 : 48|16@1+ (1,0) [0|65535] ""  LightECU,GateWay
+ SG_ Sig_OTA_TotalSize : 24|24@1+ (1,0) [0|16777215] ""  LightECU,GateWay
+ SG_ Sig_OTA_Version : 8|16@1+ (1,0) [0|65535] ""  LightECU,GateWay
+ SG_ Sig_TargetECU_ID : 0|8@1+ (1,0) [0|255] ""  LightECU,GateWay
+
+BO_ 336 VUM_OTA_EligibilityAndReq: 8 VUM
+ SG_ Sig_RequestedVersion : 32|16@1+ (1,0) [0|65535] ""  Telematics,GateWay
+ SG_ Sig_RejectReason : 26|2@1+ (1,0) [0|3] ""  Telematics,GateWay
+ SG_ Sig_OTA_DataRequest : 25|1@1+ (1,0) [0|1] ""  Telematics,GateWay
+ SG_ Sig_OTA_Eligible : 24|1@1+ (1,0) [0|1] ""  Telematics,GateWay
+ SG_ Sig_TargetECU_ID : 16|8@1+ (1,0) [0|255] ""  Telematics,GateWay
+ SG_ Sig_VehicleID : 0|16@1+ (1,0) [0|65535] ""  Telematics,GateWay
+
+BO_ 257 Veh_OTA_speedReq: 8 Speed
+ SG_ Sig_VehicleSpeed : 0|8@1+ (1,0) [0|250] "km/h"  VUM,GateWay
+
+BO_ 256 Veh_OTA_IgnitionState: 1 StartUp
+ SG_ Sig_IgnitionState : 0|2@1+ (1,0) [0|3] ""  GateWay,VUM
+
+BO_TX_BU_ 260 : GateWay,LightSensor;
+BO_TX_BU_ 259 : GateWay,Speed;
+BO_TX_BU_ 258 : GateWay,SteeringWheel;
+BO_TX_BU_ 342 : GateWay,VUM;
+BO_TX_BU_ 341 : GateWay,VUM;
+BO_TX_BU_ 340 : GateWay,VUM;
+BO_TX_BU_ 594 : GateWay,LightECU;
+BO_TX_BU_ 339 : GateWay,VUM,Telematics;
+BO_TX_BU_ 593 : GateWay,LightECU;
+BO_TX_BU_ 338 : GateWay,Telematics,VUM;
+BO_TX_BU_ 337 : GateWay,VUM,Telematics;
+BO_TX_BU_ 336 : GateWay,VUM;
+BO_TX_BU_ 257 : GateWay,Speed;
+BO_TX_BU_ 256 : GateWay,StartUp;
+
+
+CM_ BU_ Telematics "텔레매틱스";
+CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
+CM_ SG_ 3221225472 Sig_UpdateDone "업데이트 완료 여부";
+CM_ SG_ 3221225472 Sig_SwVersion "SW 버전";
+CM_ BO_ 514 "OTA 전송 종료/완료 프레임";
+CM_ SG_ 514 Sig_TotalBlocks "총 블록 수";
+CM_ SG_ 514 Sig_TransferEnd "전송 종료 알림";
+CM_ SG_ 514 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ BO_ 512 "OTA 메타데이터(파일 크기/버전/무결성 키) 전달";
+CM_ SG_ 512 Sig_IntegrityKey32 "무결성 키(축약 예시)";
+CM_ SG_ 512 Sig_OTA_TotalSize "전체 사이즈(byte)";
+CM_ SG_ 512 Sig_OTA_Version "배포 버전";
+CM_ SG_ 512 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ BO_ 513 "OTA 데이터 전송(블록)";
+CM_ SG_ 513 Sig_BlockData0_5 "펌웨어 데이터 payload(최대 6B)";
+CM_ SG_ 513 Sig_BlockLen "유효 데이터 길이";
+CM_ SG_ 513 Sig_BlockSeq "블록 시퀀스";
+CM_ BO_ 592 "라이트 ECU 출력(빔각/밝기/하이빔/로우빔)";
+CM_ SG_ 592 Sig_HeadLampMaxCap "고속 주행 밝기 캡(%)";
+CM_ SG_ 592 Sig_HighBeamOn "하이빔 점등";
+CM_ SG_ 592 Sig_LowBeamOn "로우빔 점등";
+CM_ SG_ 592 Sig_CornerLampDuty "코너링 램프 밝기(%)";
+CM_ SG_ 592 Sig_BeamAngleCmd "라이트 빔 각도 명령";
+CM_ BO_ 260 "조도 입력";
+CM_ SG_ 260 Sig_AmbientLux "조도 (lux/raw)";
+CM_ BO_ 259 "라이트 ECU가 받아야하는 정보 (속도)";
+CM_ SG_ 259 Sig_VehicleSpeed "차량 속도";
+CM_ BO_ 258 "조향각 입력";
+CM_ SG_ 258 Sig_SteeringAngle "조향각(°)";
+CM_ BO_ 342 "ECU 업데이트 기록 저장 트리거";
+CM_ SG_ 342 Sig_OTA_Result "업데이트 결과";
+CM_ SG_ 342 Sig_InstalledVersion "설치 버전
+";
+CM_ SG_ 342 Sig_ErrorCode "오류 코드";
+CM_ SG_ 342 Sig_UpdateDate "업데이트 날짜(YYMM 예시/축약)";
+CM_ SG_ 342 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ BO_ 341 "무결성 체크 결과";
+CM_ SG_ 341 Sig_RecvKey16 "수신 키(축약 예시)";
+CM_ SG_ 341 Sig_CalcKey16 "계산 키(축약 예시)";
+CM_ SG_ 341 Sig_IntegrityOK "무결성 일치 여부";
+CM_ SG_ 341 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ BO_ 340 "업데이트 취소/롤백 요청";
+CM_ SG_ 340 Sig_KeepPrevVersion "이전 버전(v1.0 등)";
+CM_ SG_ 340 Sig_RollbackReq "롤백 진입 요청";
+CM_ SG_ 340 Sig_OTA_CancelReq "업데이트 취소";
+CM_ SG_ 340 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ BO_ 594 "업데이트 수신률(Progress) 표시";
+CM_ SG_ 594 Sig_UpdateDate "업데이트 날짜(YYMM 예시/축약)";
+CM_ SG_ 594 Sig_ErrorCode "오류 코드";
+CM_ SG_ 594 Sig_InstalledVersion "설치 버전
+";
+CM_ SG_ 594 Sig_OTA_Result "업데이트 결과";
+CM_ SG_ 594 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ BO_ 339 "OTA 전송 종료/완료 프레임";
+CM_ SG_ 339 Sig_TotalBlocks "총 블록 수";
+CM_ SG_ 339 Sig_TransferEnd "전송 종료 알림";
+CM_ SG_ 339 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ BO_ 593 "업데이트 수신률(Progress) 표시";
+CM_ SG_ 593 Sig_ProgressState "업데이트 상태";
+CM_ SG_ 593 Sig_ReceivedBytes "수신된 누적 bytes(축약)";
+CM_ SG_ 593 Sig_UpdateProgress "수신률(%)";
+CM_ SG_ 593 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ BO_ 338 "OTA 데이터 전송(블록)";
+CM_ SG_ 338 Sig_BlockData0_5 "펌웨어 데이터 payload(최대 6B)";
+CM_ SG_ 338 Sig_BlockLen "유효 데이터 길이";
+CM_ SG_ 338 Sig_BlockSeq "블록 시퀀스";
+CM_ BO_ 337 "OTA 메타데이터(파일 크기/버전/무결성 키) 전달";
+CM_ SG_ 337 Sig_IntegrityKey32 "무결성 키(축약 예시)";
+CM_ SG_ 337 Sig_OTA_TotalSize "전체 사이즈(byte)";
+CM_ SG_ 337 Sig_OTA_Version "배포 버전";
+CM_ SG_ 337 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ BO_ 336 "업데이트 가능 조건 판단 결과 + 데이터 요청";
+CM_ SG_ 336 Sig_RequestedVersion "요청 SW 버전(간이)";
+CM_ SG_ 336 Sig_RejectReason "업데이트 불가 사유";
+CM_ SG_ 336 Sig_OTA_DataRequest "OTA 데이터 요청";
+CM_ SG_ 336 Sig_OTA_Eligible "조건 만족(시동OFF & 속도0)";
+CM_ SG_ 336 Sig_TargetECU_ID "타겟 ECU ID";
+CM_ SG_ 336 Sig_VehicleID "차량 식별자";
+CM_ BO_ 257 "차량 상태 보고 차량 속도 VUM으로 전송";
+CM_ SG_ 257 Sig_VehicleSpeed "차량 속도";
+CM_ BO_ 256 "차량 상태 보고 시동 상태 VUM으로 전송";
+CM_ SG_ 256 Sig_IgnitionState "시동 상태";
+BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
+BA_DEF_ BO_  "CANFD_BRS" ENUM  "0","1";
+BA_DEF_  "DBName" STRING ;
+BA_DEF_  "BusType" STRING ;
+BA_DEF_ BU_  "NodeLayerModules" STRING ;
+BA_DEF_ BU_  "ECU" STRING ;
+BA_DEF_ BU_  "CANoeJitterMax" INT 0 0;
+BA_DEF_ BU_  "CANoeJitterMin" INT 0 0;
+BA_DEF_ BU_  "CANoeDrift" INT 0 0;
+BA_DEF_ BU_  "CANoeStartDelay" INT 0 0;
+BA_DEF_ BO_  "VFrameFormat" ENUM  "StandardCAN","ExtendedCAN","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","StandardCAN_FD","ExtendedCAN_FD";
+BA_DEF_DEF_  "MultiplexExtEnabled" "No";
+BA_DEF_DEF_  "CANFD_BRS" "1";
+BA_DEF_DEF_  "DBName" "";
+BA_DEF_DEF_  "BusType" "";
+BA_DEF_DEF_  "NodeLayerModules" "";
+BA_DEF_DEF_  "ECU" "";
+BA_DEF_DEF_  "CANoeJitterMax" 0;
+BA_DEF_DEF_  "CANoeJitterMin" 0;
+BA_DEF_DEF_  "CANoeDrift" 0;
+BA_DEF_DEF_  "CANoeStartDelay" 0;
+BA_DEF_DEF_  "VFrameFormat" "StandardCAN";
+BA_ "BusType" "CAN FD";
+BA_ "DBName" "NobrakeDBC";
+BA_ "VFrameFormat" BO_ 514 14;
+BA_ "VFrameFormat" BO_ 512 14;
+BA_ "VFrameFormat" BO_ 513 14;
+BA_ "VFrameFormat" BO_ 592 14;
+BA_ "VFrameFormat" BO_ 260 14;
+BA_ "VFrameFormat" BO_ 259 14;
+BA_ "VFrameFormat" BO_ 258 14;
+BA_ "VFrameFormat" BO_ 342 14;
+BA_ "VFrameFormat" BO_ 341 14;
+BA_ "VFrameFormat" BO_ 340 14;
+BA_ "VFrameFormat" BO_ 594 14;
+BA_ "VFrameFormat" BO_ 339 14;
+BA_ "VFrameFormat" BO_ 593 14;
+BA_ "VFrameFormat" BO_ 338 14;
+BA_ "VFrameFormat" BO_ 337 14;
+BA_ "VFrameFormat" BO_ 336 14;
+BA_ "VFrameFormat" BO_ 257 14;
+BA_ "VFrameFormat" BO_ 256 14;
+

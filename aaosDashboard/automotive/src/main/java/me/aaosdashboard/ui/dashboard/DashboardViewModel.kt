@@ -82,14 +82,14 @@ class DashboardViewModel : ViewModel() {
     )
 
     init {
-        Log.d("DashboardViewModel", "receivePort=${BuildConfig.CANOE_RECEIVE_PORT}")
-        Log.d("DashboardViewModel", "sendHost=${BuildConfig.CANOE_SEND_HOST}")
-        Log.d("DashboardViewModel", "sendPort=${BuildConfig.CANOE_SEND_PORT}")
+//        Log.d("DashboardViewModel", "receivePort=${BuildConfig.CANOE_RECEIVE_PORT}")
+//        Log.d("DashboardViewModel", "sendHost=${BuildConfig.CANOE_SEND_HOST}")
+//        Log.d("DashboardViewModel", "sendPort=${BuildConfig.CANOE_SEND_PORT}")
         receiver.start(viewModelScope)
     }
 
     private fun handleVehicleMessage(message: String) {
-        Log.d("DashboardViewModel", "value=${message}")
+//        Log.d("DashboardViewModel", "value=${message}")
         val values = message
             .split(";")
             .mapNotNull {
@@ -99,23 +99,27 @@ class DashboardViewModel : ViewModel() {
             }
             .toMap()
 
-        val speed = values["Speed"]?.toIntOrNull()
+        val speed = values["speed"]?.toIntOrNull()
 
         val ignition = when (
-            values["start_up_btn"]?.toIntOrNull()
+            values["ignition_state"]?.toIntOrNull()
         ) {
             0 -> IgnitionState.OFF
             1 -> IgnitionState.ACC
             2 -> IgnitionState.ON
             else -> null
         }
+        val progressIndex = values["progress_state_idx"]?.toIntOrNull()
 
-        val progressIndex = values["UpdateProgress"]?.toIntOrNull()
+        val date = values["date"];
+        val time = values["time"];
 
         _uiState.update { state ->
             state.copy(
                 speedKmh = speed ?: state.speedKmh,
                 ignitionState = ignition ?: state.ignitionState,
+                date = date ?: state.date,
+                time = time ?: state.time
             )
         }
 

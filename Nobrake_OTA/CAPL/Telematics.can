@@ -1,0 +1,292 @@
+﻿/*@!Encoding:65001*/
+
+variables
+{
+  // --- TCP/IP 통신 관련 ---
+  dword gClientSocket = 0;
+  char  gHttpRequest[512];
+  byte  gRxBuffer[8192]; 
+  long  gReceivedBytes = 0;
+  word gServerVersion = 0;
+  int mode = 0; // 1:업데이트 요청, 2: 업데이트 기록
+  
+  // --- 업데이트 요청 관련 ---
+  int updateVersion = 0;
+  int updateTargetEcuId = 0;
+
+  // --- 업데이트 요청 관련 ---
+  int reportVersion = 0;
+  int reportEcuId = 0;
+  int reportStatus = 0;
+  
+  // --- 데이터 버퍼 관련 ---
+  byte  gFileData[5242880]; // 최대 5MB 수신 데이터 저장용 배열
+
+  // --- CAN FD OTA 전송 제어 관련 ---
+  msTimer sendTimer;      // 시뮬레이션 중단 방지용 타이머
+  long    gCurrentBlock = 0;
+  long    gTotalBlocks = 0;
+}
+
+
+// [1] 'h' 키: 클라우드 서버 접속 및 파일 다운로드 시작
+//on key 'h'
+//h키 대신 버튼 클릭시 수행
+on message VUM_OTA_EligibilityAndReq
+{
+  if (this.can != 3) return;
+  
+  // 1. 시그널 값 확인 (DBC 시그널 명칭과 일치해야 함)
+  // 조건 만족(1) AND 데이터 요청(1) 상태인지 체크
+  if (this.Sig_OTA_Eligible == 1 && this.Sig_OTA_DataRequest == 1)
+  {
+    // 2. 이미 연결된 상태가 아닐 때만 연결 시도
+    
+    updateVersion = this.Sig_RequestedVersion;
+    updateTargetEcuId = (int)this.Sig_TargetECU_ID;
+    
+    if (gClientSocket == 0) 
+    {
+      gReceivedBytes = 0;
+      mode = 1;
+      
+      // 소켓 오픈 및 EC2 서버 연결 (포트 8080)
+      gClientSocket = tcpOpen(0, 0);
+      //EC2 IP 주소 변경될 수 있음
+      tcpConnect(gClientSocket, ipGetAddressAsNumber("52.78.228.162"), 8080);
+    
+      write("[TM] 시스템: VUM 요청 수신 - 클라우드 서버 자동 연결 시도 중...");
+    }
+    else 
+    {
+      write("[TM] 알림: 이미 서버와 연결된 상태입니다.");
+    }
+  }
+  else if (this.Sig_OTA_Eligible == 0)
+  {
+    // 업데이트 불가 사유가 있는 경우 로그 출력 (선택 사항)
+    write("[TM] 알림: VUM이 업데이트 불가 상태를 전송함 (사유 코드: %d)", (int)this.Sig_RejectReason);
+  }
+}
+
+// [2] TCP 연결 성공 시 HTTP POST 요청 송신
+void OnTcpConnect(dword socket, long result)
+{
+  char jsonBody[256];
+  char httpRequest[1024];
+  
+  if (result == 0)
+  {
+    
+    if(mode==1){
+      // 1. JSON 바디 생성 (명세서의 요청 데이터)
+      // vehicleVIN, targetEcuId, requestedVersion 매핑
+      snprintf(jsonBody, elcount(jsonBody), 
+               "{\"vehicleVIN\": \"KMHCN51C6RU123456\", \"targetEcuId\": %d, \"requestedVersion\": %d}", updateTargetEcuId, updateVersion);
+  
+      // 2. HTTP POST 헤더 및 바디 구성
+      snprintf(httpRequest, elcount(httpRequest),
+               "POST /api/v1/firmware/download HTTP/1.1\r\n"
+               "Host: 52.78.228.162:8080\r\n"
+               "Content-Type: application/json\r\n"
+               "Content-Length: %d\r\n"
+               "Connection: close\r\n"
+               "\r\n"
+               "%s", 
+               strlen(jsonBody), jsonBody);
+    }else if(mode==2){
+      // 2. JSON 바디 구성 (기존 요청과 유사한 데이터 구조라고 가정)
+      // 필요한 데이터 필드는 서버 API 명세에 맞춰 수정하세요.
+      write("=========reportID : %d ============", reportEcuId);
+      write("=========reportVersion : %d ============", reportVersion);
+      write("=========reportStataus : %d ============", reportStatus);
+     snprintf(jsonBody, elcount(jsonBody), 
+           "{\"vehicleVIN\": \"KMHCN51C6RU123456\", \"targetEcuId\": %d, \"swVersion\": %d, \"updateStatus\": %d, \"failureReason\": \"NONE\"}",
+           reportEcuId,reportVersion,reportStatus);
+  
+      // 3. HTTP POST 헤더 구성 (경로: /api/v1/ota/history)
+      snprintf(httpRequest, elcount(httpRequest),
+               "POST /api/v1/ota/history HTTP/1.1\r\n"
+               "Host: 52.78.228.162:8080\r\n"
+               "Content-Type: application/json\r\n"
+               "Content-Length: %d\r\n"
+               "Connection: close\r\n"
+               "\r\n"
+               "%s", 
+               strlen(jsonBody), jsonBody);
+    }
+
+    // 3. 서버로 전송 및 수신 대기
+    tcpSend(socket, httpRequest, strlen(httpRequest));
+    tcpReceive(socket, gRxBuffer, elcount(gRxBuffer)); 
+    
+    write("[TM] 시스템: 서버 연결 성공 및 POST 요청 전송 완료.");
+  }
+  else
+  {
+    write("[TM] 에러: 서버 연결 실패 (Result Code: %ld)", result);
+  }
+}
+
+// [3] TCP 데이터 수신: 파일 기록 및 전송용 버퍼에 저장
+void OnTcpReceive(dword socket, long result, dword address, dword port, char buffer[], dword size)
+{
+  long i;
+  char versionStr[10];
+  long pos;
+  
+  if (result == 0 && size > 0)
+  {
+    
+    if(mode == 1){
+    // [추가] 처음 수신된 패킷에서 버전 헤더 찾기 (단순 문자열 검색)
+    // 헤더 예시: "X-OTA-Version: 15"
+    pos = strstr_off(buffer, 0, "X-OTA-Version: ");
+    if (pos != -1)
+    {
+      // "X-OTA-Version: " 이후의 숫자를 읽어옴
+      substr_cpy(versionStr, buffer, pos + 15, 2, elcount(versionStr));
+      gServerVersion = (word)atol(versionStr);
+      write("[TM] 서버 응답 확인: 배포 버전 %d", gServerVersion);
+    }
+    
+    // [수정] memcpy_obj 대신 직접 루프 복사 (빨간 밑줄 해결)
+    if (gReceivedBytes + size <= elcount(gFileData))
+    {
+      for(i = 0; i < size; i++)
+      {
+        gFileData[gReceivedBytes + i] = gRxBuffer[i];
+      }
+    }
+
+    gReceivedBytes += size;
+    write("[TM] 다운로드 중... (%ld bytes 수신)", gReceivedBytes);
+    tcpReceive(socket, gRxBuffer, elcount(gRxBuffer));
+    }else if (mode == 2)
+    {
+      // 기록 전송 후 서버의 응답(200 OK 등)을 로그로만 찍고 마무리
+      write("[TM] 이력 전송 응답 수신");
+    }
+  }
+}
+
+// [4] TCP 연결 종료: 다운로드 완료 후 CAN 전송 시퀀스 진입
+void OnTcpClose(dword socket, long result)
+{
+  if(mode==1){
+    write("[TM] 다운로드 완료: %ld bytes", gReceivedBytes);
+    tcpClose(gClientSocket);
+    gClientSocket = 0;
+  
+    // OTA 전송 파라미터 계산 (6바이트 단위 분할)
+    gTotalBlocks = (gReceivedBytes + 5) / 6; 
+    gCurrentBlock = 0;
+    
+    // 메타데이터(0x200) 우선 전송
+    SendMetadata();
+    
+    // 데이터 전송 타이머 시작 (10ms 후 시작)
+    setTimer(sendTimer, 10);
+  }else if (mode == 2) // 이력 전송 완료 시
+  {
+    write("[TM] 시스템: 업데이트 이력 서버 전송 완료 및 소켓 종료.");
+    tcpClose(gClientSocket);
+    gClientSocket = 0;
+    
+    // UI 상태 업데이트 또는 초기화
+    @UI_Status::download_btn = 0; 
+  }
+}
+
+// [5] OTA 메타데이터 송신 함수 (ID: 0x200)
+void SendMetadata()
+{
+  message TMU_OTA_Metadata msg;
+  msg.can = 3;
+  msg.FDF = 1; // CAN FD 활성화
+  msg.Sig_TargetECU_ID = 0x01;
+  msg.Sig_OTA_TotalSize = gReceivedBytes;
+  msg.Sig_OTA_Version = gServerVersion;
+  output(msg);
+  //체크용 로그
+  write("[TM] 차량 내 OTA 전송 시작: 메타데이터(0x200) 전송됨.");
+}
+
+// [6] OTA 데이터 블록 순차 전송 타이머 (ID: 0x201)
+on timer sendTimer
+{
+  message TMU_OTA_DataBlock msg;
+  long baseIdx;
+  
+  if (gCurrentBlock < gTotalBlocks)
+  {
+    msg.can = 3;
+    msg.FDF = 1;
+    msg.Sig_BlockSeq = gCurrentBlock % 256; // 0~255 순환
+    
+    // 유효 데이터 길이 결정 (마지막 블록 예외 처리)
+    if (gCurrentBlock == gTotalBlocks - 1 && gReceivedBytes % 6 != 0) 
+      msg.Sig_BlockLen = gReceivedBytes % 6;
+    else 
+      msg.Sig_BlockLen = 6;
+
+    baseIdx = gCurrentBlock * 6;
+
+    // [수정] "no array possible here" 해결을 위한 .byte() 직접 할당
+    msg.Sig_BlockData0_5.byte(0) = gFileData[baseIdx + 0];
+    msg.Sig_BlockData0_5.byte(1) = gFileData[baseIdx + 1];
+    msg.Sig_BlockData0_5.byte(2) = gFileData[baseIdx + 2];
+    msg.Sig_BlockData0_5.byte(3) = gFileData[baseIdx + 3];
+    msg.Sig_BlockData0_5.byte(4) = gFileData[baseIdx + 4];
+    msg.Sig_BlockData0_5.byte(5) = gFileData[baseIdx + 5];
+
+    output(msg);
+    gCurrentBlock++;
+    
+    // 다음 블록 전송 주기 (부하 분산)
+    setTimer(sendTimer, 1); 
+  }
+  else
+  {
+    // [7] 모든 블록 전송 후 종료 프레임 송신
+    SendTransferEnd();
+  }
+}
+
+// [7] OTA 전송 종료 알림 함수 (ID: 0x202)
+void SendTransferEnd()
+{
+  message TMU_OTA_TransferEnd msg;
+  msg.can = 3;
+  msg.FDF = 1;
+  msg.Sig_TargetECU_ID = 0x01;
+  msg.Sig_TransferEnd = 1;
+  msg.Sig_TotalBlocks = gTotalBlocks;
+  output(msg);
+  //체크용 로그
+  write("[TM] 차량 내 OTA 전송 완료: 종료 프레임(0x202) 전송됨.");
+  @UI_Status::download_btn = 4;
+}
+
+
+// [8] VUM으로부터 최종 완료 메시지 수신 시 이력 전송
+on message Light_OTA_Complete
+{
+  write("[TM]Light_OTA_Complete 수신");
+  mode = 2;
+  reportVersion = this.Sig_InstalledVersion;
+  reportEcuId = this.Sig_TargetECU_ID;
+  reportStatus = this.Sig_OTA_Result;
+
+  // 1. 이미 소켓이 사용 중인지 체크 (중복 실행 방지)
+  if (gClientSocket == 0) 
+  {
+      // 소켓 오픈 및 EC2 서버 연결 (포트 8080)
+      gClientSocket = tcpOpen(0, 0);
+      //EC2 IP 주소 변경될 수 있음
+      tcpConnect(gClientSocket, ipGetAddressAsNumber("52.78.228.162"), 8080);
+    
+      write("[TM] 시스템: 업데이트 기록 수신 - 클라우드 서버 자동 연결 시도 중...");
+
+  }
+}

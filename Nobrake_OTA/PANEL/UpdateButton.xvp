@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Panel Type="Vector.CANalyzer.Panels.PanelSerializer, Vector.CANalyzer.Panels.Serializer, Version=19.4.10.0, Culture=neutral, PublicKeyToken=null">
+  <Object Type="Vector.CANalyzer.Panels.Runtime.Panel, Vector.CANalyzer.Panels.Common, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Panel" ControlName="UpdateButton">
+    <Object Type="Vector.CANalyzer.Panels.Design.ButtonControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xd7d7d268e3111e467ee9e02e9dbd5bb6e6a0" ControlName="Button 1">
+      <Property Name="Name">Xd7d7d268e3111e467ee9e02e9dbd5bb6e6a0</Property>
+      <Property Name="Size">75, 23</Property>
+      <Property Name="Location">33, 9</Property>
+      <Property Name="TabIndex">1</Property>
+      <Property Name="Text">Button</Property>
+      <Property Name="SymbolConfiguration">8;16;Update;;;UpdateTrigger;1;;;-1;;;Value;;;0</Property>
+    </Object>
+    <Property Name="Name">Panel</Property>
+    <Property Name="Size">144, 37</Property>
+    <Property Name="Location">0, 0</Property>
+    <Property Name="BackColor">White</Property>
+  </Object>
+</Panel>

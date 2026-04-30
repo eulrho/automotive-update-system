@@ -1,0 +1,65 @@
+﻿/*@!Encoding:65001*/
+includes
+{
+  
+}
+
+variables
+{
+  msTimer tUpdateTimer;
+  char dateBuf[50];
+  char timeBuf[50];
+}
+
+on start
+{
+  setTimer(tUpdateTimer, 1);
+}
+
+on timer tUpdateTimer
+{
+  long t[9];
+  char ampm[5];
+  int h12;
+
+  getLocalTime(t); // 시스템 시간 정보 가져오기
+
+  // 패널 작업
+  // 날짜 (0000.00.00)
+  snprintf(dateBuf, elcount(dateBuf), "%04d.%02d.%02d", 
+           t[5] + 1900, t[4] + 1, t[3]);
+
+  // 시간 (AM/PM 00:00)
+  // 오전
+  if(t[2] < 12) {
+    strncpy(ampm, "AM", 5);
+    h12 = (t[2] == 0) ? 12 : t[2];
+  }
+  // 오후
+  else {
+    strncpy(ampm, "PM", 5);
+    h12 = (t[2] == 12) ? 12 : t[2] - 12;
+  }
+  snprintf(timeBuf, elcount(timeBuf), "%s %02d:%02d", ampm, h12, t[1]);
+
+  // 시스템 변수에 전달
+  sysSetVariableString(sysvar::UI_Status::cur_date, dateBuf);
+  sysSetVariableString(sysvar::UI_Status::cur_time, timeBuf);
+  
+  
+  
+  // 조도 센서 값 변경 (시간 기준)
+//  // 낮 시간 (AM 06:00 ~ PM 06:00)
+//  if (t[2] >= 6 && t[2] <= 18) {
+//    $Input::GateWay::Veh_AmbientLux::Sig_AmbientLux = 0;
+//  }
+//  // 밤 시간 (그 외 모든 시간)
+//  else {
+//    $Input::GateWay::Veh_AmbientLux::Sig_AmbientLux = 1;
+//  }
+  
+  // 조도 센서 값 변경 (패널 기준)
+  $Input::GateWay::Veh_AmbientLux::Sig_AmbientLux = @sysvar::UI_Status::light_sensor;
+
+  setTimer(tUpdateTimer, 1000); // 1초 뒤 다시 실행
+}

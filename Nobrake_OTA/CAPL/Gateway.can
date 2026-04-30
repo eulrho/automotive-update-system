@@ -1,0 +1,146 @@
+﻿/*@!Encoding:65001*/
+includes
+{
+}
+
+variables
+{
+  // CANoe 하드웨어 채널 매핑 (숫자 1~4 확인 필수)
+  const int CH_INPUT   = 1; 
+  const int CH_UPDATE  = 2;
+  const int CH_NETWORK = 3; 
+  const int CH_LIGHT   = 4; 
+}
+
+on message can1.Input::Veh_SteeringAngle{
+  message Light::Veh_SteeringAngle m_LightSteer;
+    
+  m_LightSteer = this;
+  m_LightSteer.can = 3;
+    
+  output(m_LightSteer);
+  
+}
+
+on message can1.Input::Veh_VehicleSpeed {
+  message Light::Veh_VehicleSpeed m_out;
+  
+  m_out = this;
+  m_out.can = 3;
+  
+  output(m_out);
+}
+
+on message can1.Input::Veh_AmbientLux{
+  message Light::Veh_AmbientLux m_AmbientLux;
+    
+  m_AmbientLux = this;
+  m_AmbientLux.can = 3;
+    
+  output(m_AmbientLux);
+  
+}
+
+
+// ------------------------------------------------------------------
+// [공통 함수] 메시지를 지정된 채널로 전달하는 함수
+// ------------------------------------------------------------------
+void RouteMsg(message * msg, int targetChannel)
+{
+  message * routedMsg;
+  routedMsg = msg;               // 메시지 속성 복사
+  routedMsg.can = targetChannel; // 목적지 채널 설정
+  routedMsg.FDF = 1;             // CAN FD 포맷 유지
+  output(routedMsg);             // 타겟 채널로 송신
+}
+
+// ------------------------------------------------------------------
+// 메인 라우팅 핸들러 (ID 대역별 자동 중계)
+// ------------------------------------------------------------------
+on message *
+{
+  // 송신(Tx) 메시지는 무시 (무한 루프 방지)
+  if (this.dir == tx) return;
+
+
+  else if (this.can == CH_INPUT) 
+    {
+      //100
+      if (this.id == 0x100) 
+      {
+        //write("[GW] 시동데이터 중계 (Input -> Update)");
+        RouteMsg(this, CH_UPDATE);
+      }
+    }
+  
+
+  else if (this.can == CH_UPDATE)
+    {
+      if (this.id == 0x150) 
+      {
+        write("[GW] 업데이트 요청 중계 (Update -> Network)");
+        RouteMsg(this, CH_NETWORK);
+      }
+      if (this.id == 0x151) 
+      {
+        //write("[GW] LIghtECU로 업데이트 파일 전송)");
+        RouteMsg(this, CH_LIGHT);
+      }
+      if( this.id == 0x153){
+        RouteMsg(this, CH_LIGHT);
+      }
+    }
+
+
+
+  else if (this.can == CH_NETWORK)
+    {
+      //200
+      if (this.id == 0x200) 
+      {
+        write("[GW] TMU 메타데이터 중계 (Network -> Update)");
+        RouteMsg(this, CH_UPDATE);
+      }
+      //201
+      else if (this.id == 0x201)
+      {
+        RouteMsg(this, CH_UPDATE);
+      }
+      //202
+      else if (this.id == 0x202) 
+      {
+        write("[GW] TMU 전송 종료 중계 (Network -> Update)");
+        RouteMsg(this, CH_UPDATE);
+      }
+    }
+  
+
+
+  if (this.can == CH_LIGHT)
+    {
+
+    }
+  
+}
+
+// ------------------------------------------------------------------
+// [새로 추가한 부분] VUM 서버 보고 메시지 처리 및 외부 전송 로그 출력
+// ------------------------------------------------------------------
+on message Light_OTA_Complete
+{
+  if (this.dir ==tx) return;
+  // 1. 외부 서버가 연결된 네트워크 채널(CH_NETWORK)로 데이터 라우팅
+  RouteMsg(this, CH_NETWORK);
+
+  // 2. 서버 전송 과정을 Write 창에 시각적으로 출력 (결과가 1: 성공일 때)
+  if(this.Sig_OTA_Result == 1) 
+  {
+    write(" ");
+    write("==========================================================");
+    write("[GATEWAY -> EXTERNAL SERVER] 차량 업데이트 결과 전송 완료!");
+    write("- 대상 ECU ID   : 0x%X", this.Sig_TargetECU_ID);
+    write("- 최종 설치 버전: v%d.0", this.Sig_InstalledVersion);
+    write("- 서버 전송 상태: SUCCESS (1)");
+    write("==========================================================");
+  }
+}

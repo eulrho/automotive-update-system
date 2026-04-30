@@ -1,0 +1,71 @@
+﻿/*@!Encoding:65001*/
+includes { }
+
+variables
+{
+  msTimer timer1; 
+  double db_speed = 0.0;        
+  double db_speed_acc = 0.1;      // accel 누름 상태 시 속도 증가량
+  double db_speed_brk = 0.4;      // brake 누름 상태 시 속도 감소량
+  double db_speed_nut = 0.01;     // 타력 주행 시 속도 감소량 n
+  double db_speed_stall = 0.1;    // 시동이 꺼졌을 시 속도 감소량
+  double dashboard_speed = 20.0;  // 대시보드 표기 간격
+}
+
+on start 
+{
+  setTimerCyclic(timer1, 5);    // measurement 첫 시작 시 timer 초기화
+}
+
+on Timer timer1{
+  
+  if(db_speed > 0) {
+    // 시동이 갑자기 꺼졌을 경우 속도 감소량 증가 
+    if($Input::GateWay::Veh_OTA_IgnitionState::Sig_IgnitionState == 0){
+     db_speed -= db_speed_stall;
+    }
+    // 중립 상태 시 감속
+    else{
+      db_speed -= db_speed_nut;
+    }
+  }
+  
+  // 브레이크 버튼 눌렀을 경우 감속
+  if(@sysvar::UI_Status::brk_btn == 1) {
+    if(db_speed > 0) {
+      db_speed -= db_speed_brk;
+    }
+   }
+   else { 
+     // 엑셀 버튼 눌렀을 경우 감속
+     if(@sysvar::UI_Status::acc_btn == 1 && $Input::GateWay::Veh_OTA_IgnitionState::Sig_IgnitionState == 2) {
+       if(db_speed < 255) {
+         db_speed += db_speed_acc;
+       }
+       if(db_speed > Input::Speed::Veh_VehicleSpeed::Sig_VehicleSpeed.maximum) {
+        // DBC에 정의된 최대값보다 높으면 최대값으로 값 설정
+         db_speed = Input::Speed::Veh_VehicleSpeed::Sig_VehicleSpeed.maximum;
+       }
+     }
+   }
+   
+  if(db_speed < 0) {
+    db_speed = 0;
+  }
+  if(db_speed > 255) {
+    db_speed = 255;
+  }
+  
+  @sysvar::UI_Status::dashboard_speed = (db_speed / dashboard_speed);
+  
+  $Input::Speed::Veh_VehicleSpeed::Sig_VehicleSpeed = db_speed;
+  $Input::GateWay::Veh_OTA_speedReq::Sig_VehicleSpeed = db_speed;
+  
+  
+  //write("%f", db_speed);
+}
+
+
+
+
+

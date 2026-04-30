@@ -1,0 +1,35 @@
+﻿/*@!Encoding:65001*/
+includes
+{
+  
+}
+
+variables
+{
+  msTimer clTimer;
+  const int initial_value = 10; // 조향각이 0도일 때 시스템 변수 초기값
+}
+
+on start {
+  setTimer(clTimer, 1);
+}
+
+on timer clTimer{
+  // 속도가 50km/h 미만이라면 코너링 라이트 끈 상태 유지.
+  // AND 조도센서가 낮이라면 끈 상태 유지
+  if($Input::GateWay::Veh_AmbientLux::Sig_AmbientLux == 0 || $Input::Speed::Veh_VehicleSpeed::Sig_VehicleSpeed < 50){
+    @sysvar::UI_Status::cornering_light = 0;
+  }
+  // 핸들 10도 돌아갈 때 마다 2.5도씩 코너링 램프 돌아감.
+  // 범위 : -90 ~ 90 
+  else{
+    if(@Update::light_flag && ($Input::GateWay::Veh_SteeringAngle::Sig_SteeringAngle < 130 || $Input::GateWay::Veh_SteeringAngle::Sig_SteeringAngle > 230)){
+      @sysvar::UI_Status::cornering_light = initial_value + ($Input::GateWay::Veh_SteeringAngle::Sig_SteeringAngle/10);
+    }else{
+      @sysvar::UI_Status::cornering_light = 0;
+    }
+  }
+  
+  setTimer(clTimer, 1);
+}
+

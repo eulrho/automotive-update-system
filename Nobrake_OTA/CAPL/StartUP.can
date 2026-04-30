@@ -1,0 +1,59 @@
+﻿/*@!Encoding:65001*/
+includes
+{
+  
+}
+
+variables
+{
+  message Input::Veh_OTA_IgnitionState msg_state;
+}
+
+on sysvar UI_Status::start_up_btn
+{
+  // ------------------------------------------------------------------
+  // [새로 추가한 부분] OTA 진행 중 시동 상태 변경 원천 차단 (안전 잠금)
+  // ------------------------------------------------------------------
+  if (@UI_Status::download_btn == 1) 
+  {
+    if (@this == 2) 
+    {
+      write("[StartUP] 🚫 경고: 소프트웨어 업데이트 중에는 시동을 켤 수 없습니다!");
+      @this = 1; // 강제로 ACC(1)로 되돌림
+      return;    // 아래쪽 기존 코드가 실행되지 않도록 여기서 끊어줌
+    }
+    else if (@this == 0) 
+    {
+      write("[StartUP] 🚫 경고: 업데이트 중 전원을 끄면 안 됩니다!");
+      @this = 1; // 강제로 ACC(1)로 되돌림
+      return;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // --- 기존 로직 (수정/삭제 없이 100% 원본 유지) ---
+  // ------------------------------------------------------------------
+//  // 버튼 한 번 누르면 시동 상태 변경
+//  if(@sysvar::UI_Status::start_up_btn == 1){
+//    msg_state.Sig_IgnitionState ++; 
+  
+//    // ON 상태(2)에서 한 번 더 누르면 시동 꺼짐(0).
+//    if(msg_state.Sig_IgnitionState > 2){ 
+//      msg_state.Sig_IgnitionState = 0;
+//    }
+    
+//    output(msg_state);
+//  }
+  if (@UI_Status::start_up_btn==0)
+ {
+    @UI_Status::display_onff = 0; 
+ }
+ else
+ {
+   @UI_Status::display_onff = 1; 
+
+ }
+  
+  msg_state.Sig_IgnitionState = @sysvar::UI_Status::start_up_btn;
+  output(msg_state);
+}

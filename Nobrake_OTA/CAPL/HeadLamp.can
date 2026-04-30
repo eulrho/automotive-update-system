@@ -1,0 +1,26 @@
+﻿/*@!Encoding:65001*/
+includes
+{
+  
+}
+
+variables
+{
+  msTimer hlTimer;
+}
+
+on start{
+  setTimer(hlTimer, 1);
+}
+
+on timer hlTimer{
+  write("[light test] light=%d", @UI_Status::light);
+  // 전조등 업데이트 완료 시 AND 시동이 켜졌을 때만 작동
+  if(@Update::light_flag && $Input::GateWay::Veh_OTA_IgnitionState::Sig_IgnitionState == 2){
+   @UI_Status::light = @sysvar::UI_Status::light_sensor;
+ }else{
+  @UI_Status::light = 0;
+ }
+ setTimer(hlTimer, 1);
+}
+
