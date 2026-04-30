@@ -16,12 +16,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun HeadBar(
-    vehicleName: String
+    vehicleName: String,
+    date: String,
+    time: String
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -30,17 +33,35 @@ fun HeadBar(
             containerColor = Color(0xFF101010)
         )
     ) {
-        HeadText(vehicleName)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            HeadText(vehicleName, MaterialTheme.typography.headlineSmall)
+
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                HeadText(date, MaterialTheme.typography.titleMedium)
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                HeadText(time, MaterialTheme.typography.titleMedium)
+            }
+        }
     }
 }
 
 @Composable
 private fun HeadText(
-    content: String
+    content: String,
+    style: TextStyle
 ) {
     Text(
         text = content,
-        style = MaterialTheme.typography.headlineSmall,
+        style = style,
         fontWeight = FontWeight.Bold,
         color = Color.White
     )
