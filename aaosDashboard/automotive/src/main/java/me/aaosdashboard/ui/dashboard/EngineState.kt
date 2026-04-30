@@ -42,9 +42,14 @@ fun EngineState(
     val frameCount = 2
     val frameWidth = lineSheet.width / frameCount
     val frameHeight = lineSheet.height
+
+    if (ignitionState == IgnitionState.OFF) {
+        return
+    }
     val frameIndex = when (ignitionState) {
         IgnitionState.ACC -> 0
         IgnitionState.ON -> 1
+        IgnitionState.OFF -> null
     }
 
     Box(
@@ -67,17 +72,19 @@ fun EngineState(
             Canvas(
                 modifier = Modifier.fillMaxSize()
             ) {
-                drawSpriteFrame(
-                    sheet = lineSheet,
-                    frameIndex = frameIndex,
-                    frameWidth = frameWidth,
-                    frameHeight = frameHeight,
-                    canvasWidth = size.width,
-                    canvasHeight = size.height,
-                    scale = 1.3f,
-                    offsetX = 0,
-                    offsetY = 6
-                )
+                frameIndex?.let {
+                    drawSpriteFrame(
+                        sheet = lineSheet,
+                        frameIndex = frameIndex,
+                        frameWidth = frameWidth,
+                        frameHeight = frameHeight,
+                        canvasWidth = size.width,
+                        canvasHeight = size.height,
+                        scale = 1.3f,
+                        offsetX = 0,
+                        offsetY = 6
+                    )
+                }
             }
         }
     }

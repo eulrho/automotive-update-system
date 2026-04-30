@@ -1,5 +1,6 @@
 package me.aaosdashboard.ui.dashboard
 
+import me.aaosdashboard.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
@@ -8,6 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+import android.util.Log
 
 enum class OtaStatus(val label: String) {
     IDLE("대기 중"),
@@ -32,12 +35,6 @@ class DashboardViewModel : ViewModel() {
     }
 
     fun onDownloadSmartLightClick() {
-//        _uiState.update { state ->
-//            state.copy(
-//                otaProgressFrameIndex = index.coerceIn(0, 10)
-//            )
-//        }
-        // 테스트용
         _uiState.update { state ->
             state.copy(
                 otaStatus = OtaStatus.DOWNLOADING,
@@ -46,35 +43,95 @@ class DashboardViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
+            canoeSender.send("command=download;target=smart_light")
+        }
+    }
 
-            for (frameIndex in 0..10) {
-                delay(500)
+    private fun updateProgressFrameIndex(index: Int) {
+        val safeIndex = index.coerceIn(0, 10)
+
+        _uiState.update { state ->
+            state.copy(
+                otaProgressFrameIndex = safeIndex
+            )
+        }
+
+        if (
+            safeIndex == 10 &&
+            _uiState.value.otaStatus != OtaStatus.SUCCESS
+        ) {
+            viewModelScope.launch {
+                delay(1000)
+
                 _uiState.update { state ->
                     state.copy(
-                        otaProgressFrameIndex = frameIndex
+                        otaStatus = OtaStatus.SUCCESS,
+                        isSmartLightExpanded = false
                     )
                 }
-            }
-
-            delay(500)
-            _uiState.update { state ->
-                state.copy(
-                    otaStatus = OtaStatus.SUCCESS,
-                    isSmartLightExpanded = false
-                )
             }
         }
     }
 
-    fun updateSpeed(speed: Int) {
-        _uiState.value = _uiState.value.copy(
-            speedKmh = speed.coerceAtLeast(0)
-        )
+    // canoe - receive
+    private val receiver = VehicleTcpReceiver(
+        port = 5000,
+        onReceive = { message ->
+            handleVehicleMessage(message)
+        }
+    )
+
+    init {
+        Log.d("DashboardViewModel", "receivePort=${BuildConfig.CANOE_RECEIVE_PORT}")
+        Log.d("DashboardViewModel", "sendHost=${BuildConfig.CANOE_SEND_HOST}")
+        Log.d("DashboardViewModel", "sendPort=${BuildConfig.CANOE_SEND_PORT}")
+        receiver.start(viewModelScope)
     }
 
-    fun updateProgressFrameIndex(progress: Int) {
-        _uiState.value = _uiState.value.copy(
-            otaProgressFrameIndex = progress.coerceIn(0, 100)
-        )
+    private fun handleVehicleMessage(message: String) {
+        Log.d("DashboardViewModel", "value=${message}")
+        val values = message
+            .split(";")
+            .mapNotNull {
+                val parts = it.split("=")
+                if (parts.size == 2) parts[0] to parts[1]
+                else null
+            }
+            .toMap()
+
+        val speed = values["Speed"]?.toIntOrNull()
+
+        val ignition = when (
+            values["start_up_btn"]?.toIntOrNull()
+        ) {
+            0 -> IgnitionState.OFF
+            1 -> IgnitionState.ACC
+            2 -> IgnitionState.ON
+            else -> null
+        }
+
+        val progressIndex = values["UpdateProgress"]?.toIntOrNull()
+
+        _uiState.update { state ->
+            state.copy(
+                speedKmh = speed ?: state.speedKmh,
+                ignitionState = ignition ?: state.ignitionState,
+            )
+        }
+
+        progressIndex?.let {
+            updateProgressFrameIndex(it)
+        }
     }
+
+    override fun onCleared() {
+        receiver.stop()
+        super.onCleared()
+    }
+
+    // canoe - sender
+    private val canoeSender = CanoeTcpSender(
+        host = BuildConfig.CANOE_SEND_HOST,
+        port = BuildConfig.CANOE_SEND_PORT
+    )
 }

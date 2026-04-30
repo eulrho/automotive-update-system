@@ -1,6 +1,7 @@
 package me.aaosdashboard.ui.dashboard
 
 enum class IgnitionState {
+    OFF,
     ACC,
     ON
 }
@@ -16,6 +17,6 @@ data class DashboardUiState(
     val maxSpeedKmh: Int = 240,
     val otaStatus: OtaStatus = OtaStatus.IDLE,
     val otaProgressFrameIndex: Int = 0,
-    val ignitionState: IgnitionState = IgnitionState.ACC,
+    val ignitionState: IgnitionState = IgnitionState.OFF,
     val isSmartLightExpanded: Boolean = false
 )

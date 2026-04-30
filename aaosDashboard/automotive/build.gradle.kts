@@ -1,7 +1,13 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
+}
+
+val localProperties = Properties().apply {
+    load(rootProject.file("local.properties").inputStream())
 }
 
 android {
@@ -16,6 +22,24 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField(
+            "String",
+            "CANOE_SEND_HOST",
+            "\"${localProperties["CANOE_SEND_HOST"]}\""
+        )
+
+        buildConfigField(
+            "int",
+            "CANOE_SEND_PORT",
+            "${localProperties["CANOE_SEND_PORT"]}"
+        )
+
+        buildConfigField(
+            "int",
+            "CANOE_RECEIVE_PORT",
+            "${localProperties["CANOE_RECEIVE_PORT"]}"
+        )
     }
 
     buildTypes {
@@ -36,6 +60,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
